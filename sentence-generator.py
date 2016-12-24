@@ -3,6 +3,7 @@
 import re
 import random
 import sys
+import codecs
 
 # These mappings can get fairly large -- they're stored globally to
 # save copying time.
@@ -20,6 +21,9 @@ mapping = {}
 
 # Contains the set of words that can start sentences
 starts = []
+
+# full stop unicode in Nepali
+fullstop= u"\u0964"
 
 # We want to be able to compare words independent of their capitalization.
 def fixCaps(word):
@@ -43,10 +47,12 @@ def toHashKey(lst):
 # Returns the contents of the file, split into a list of words and
 # (some) punctuation.
 def wordlist(filename):
-    f = open(filename, 'r')
-    wordlist = [fixCaps(w) for w in re.findall(r"[\w']+|[.,!?;]", f.read())]
-    f.close()
-    return wordlist
+    with codecs.open(filename,'r',encoding='utf8') as f:
+        text = f.read()
+        #wordlist = [w for w in re.findall(r"[\w']+|[,!?;]", text)]
+        wordlist = [w for w in re.findall(r"[^\s]+|[" + fullstop + ",!?;]", text)]
+        f.close()
+        return wordlist
 
 # Self-explanatory -- adds "word" to the "tempMapping" dict under "history".
 # tempMapping (and mapping) both match each word to a list of possible next
@@ -78,7 +84,7 @@ def buildMapping(wordlist, markovLength):
             history = wordlist[i - markovLength + 1 : i + 1]
         follow = wordlist[i + 1]
         # if the last elt was a period, add the next word to the start list
-        if history[-1] == "." and follow not in ".,!?;":
+        if history[-1] == fullstop and follow not in fullstop + ",!?;":
             starts.append(follow)
         addItemToTempMapping(history, follow)
     # Normalize the values in tempMapping, put them into mapping
@@ -106,16 +112,16 @@ def next(prevList):
 def genSentence(markovLength):
     # Start with a random "starting word"
     curr = random.choice(starts)
-    sent = curr.capitalize()
+    sent = curr
     prevList = [curr]
     # Keep adding words until we hit a period
-    while (curr not in "."):
+    while (curr not in fullstop):
         curr = next(prevList)
         prevList.append(curr)
         # if the prevList has gotten too long, trim it
         if len(prevList) > markovLength:
             prevList.pop(0)
-        if (curr not in ".,!?;"):
+        if (curr not in fullstop + ",!?;"):
             sent += " " # Add spaces between words (but not punctuation)
         sent += curr
     return sent
